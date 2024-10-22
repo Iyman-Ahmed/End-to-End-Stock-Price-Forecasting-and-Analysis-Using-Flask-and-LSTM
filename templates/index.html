@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Analysis & Forecasting</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        header {
+            background-color: #34495e;
+            color: white;
+            text-align: center;
+            padding: 20px 0;
+            font-size: 24px;
+            font-weight: 500;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #34495e;
+        }
+
+        .search-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        input[type="text"] {
+            width: 60%;
+            padding: 15px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 15px 25px;
+            background-color: #2980b9;
+            color: white;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #3498db;
+        }
+
+        #stockList {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            display: none;
+            width: 60%;
+            margin-left: auto;
+            margin-right: auto;
+            background-color: white;
+        }
+
+        .stock-item {
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .stock-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        #loadingBar {
+            display: none;
+            width: 100%;
+            height: 10px;
+            background-color: #f3f3f3;
+            margin-top: 20px;
+            position: relative;
+        }
+
+        #loadingBar div {
+            width: 0;
+            height: 100%;
+            background-color: #27ae60;
+            animation: loadingAnimation 2s infinite;
+        }
+
+        @keyframes loadingAnimation {
+            0% { width: 0; }
+            50% { width: 100%; }
+            100% { width: 0; }
+        }
+
+        .result-section {
+            margin-top: 40px;
+        }
+
+        .prediction-title {
+            text-align: center;
+            font-size: 22px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .table-container {
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+        }
+
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+
+        td {
+            text-align: center;
+        }
+
+        .graph-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+
+        .graph {
+            width: 48%;
+            min-width: 400px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 768px) {
+            input[type="text"] {
+                width: 100%;
+            }
+
+            .graph {
+                width: 100%;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <header>
+        Stock Analysis Dashboard
+    </header>
+
+    <div class="container">
+        <h1>Analyze Stock Trends</h1>
+
+        <div class="search-container">
+            <input type="text" id="stockSearch" placeholder="Search for a stock...">
+            <button id="analyzeButton">Analyze Stock</button>
+        </div>
+
+        <ul id="stockList">
+            {% for stock in stocks %}
+                <li class="stock-item">{{ stock }}</li>
+            {% endfor %}
+        </ul>
+
+        <!-- Loading Bar -->
+        <div id="loadingBar">
+            <div></div>
+        </div>
+
+        <!-- Prediction Title -->
+        <div class="result-section">
+            <div class="prediction-title" id="predictedPrice"></div>
+        </div>
+
+        <!-- Stock Info Table -->
+        <div class="table-container" id="stockInfoContainer"></div>
+
+        <!-- Graphs -->
+        <div class="graph-container">
+            <div class="graph" id="graph_model"></div>
+            <div class="graph" id="graph_sma"></div>
+            <div class="graph" id="graph_ema"></div>
+        </div>
+    </div>
+
+    <script>
+        const stockSearch = document.getElementById('stockSearch');
+        const stockList = document.getElementById('stockList');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const loadingBar = document.getElementById('loadingBar');
+        const graphModelDiv = document.getElementById('graph_model');
+        const graphSMADiv = document.getElementById('graph_sma');
+        const graphEMADiv = document.getElementById('graph_ema');
+        const predictedPrice = document.getElementById('predictedPrice');
+        const stockInfoContainer = document.getElementById('stockInfoContainer');
+
+        stockSearch.addEventListener('keyup', function() {
+            const filter = this.value.toLowerCase();
+            const stockItems = document.querySelectorAll('.stock-item');
+
+            let hasVisibleItems = false;
+            stockItems.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(filter)) {
+                    item.style.display = '';
+                    hasVisibleItems = true;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            stockList.style.display = hasVisibleItems ? 'block' : 'none';
+        });
+
+        const stockItems = document.querySelectorAll('.stock-item');
+        stockItems.forEach(item => {
+            item.addEventListener('click', function() {
+                stockSearch.value = this.textContent;
+                stockList.style.display = 'none';
+            });
+        });
+
+        analyzeButton.addEventListener('click', function() {
+            const selectedStock = stockSearch.value;
+            loadingBar.style.display = 'block';
+            graphModelDiv.innerHTML = '';
+            graphSMADiv.innerHTML = '';
+            graphEMADiv.innerHTML = '';
+            predictedPrice.innerHTML = '';
+            stockInfoContainer.innerHTML = '';
+
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ stock: selectedStock })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingBar.style.display = 'none';
+
+                // Display predicted price title
+                predictedPrice.innerHTML = `<h2>Today's Predicted Price: ${data.predicted_today_price}</h2>`;
+
+                // Display stock info table
+                stockInfoContainer.innerHTML = `<h3>Stock Info</h3>` + data.stock_info_html;
+
+                // Display the graphs using Plotly
+                const graphModelData = JSON.parse(data.graph_model);
+                Plotly.newPlot('graph_model', graphModelData.data, graphModelData.layout);
+
+                const graphSMAData = JSON.parse(data.graph_sma);
+                Plotly.newPlot('graph_sma', graphSMAData.data, graphSMAData.layout);
+
+                const graphEMAData = JSON.parse(data.graph_ema);
+                Plotly.newPlot('graph_ema', graphEMAData.data, graphEMAData.layout);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingBar.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

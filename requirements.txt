@@ -1,0 +1,13 @@
+pandas                 # For data manipulation
+numpy                  # For numerical operations
+matplotlib             # For plotting
+seaborn                # For advanced data visualization
+prophet                # For Prophet (Facebook's time series model)
+statsmodels            # For ARIMA
+tensorflow             # For LSTM
+scikit-learn           # For Random Forest and other ML models
+xgboost                # For Gradient Boosting (XGBoost)
+lightgbm               # For Gradient Boosting (LightGBM)
+yfinance
+missingno
+plotly
