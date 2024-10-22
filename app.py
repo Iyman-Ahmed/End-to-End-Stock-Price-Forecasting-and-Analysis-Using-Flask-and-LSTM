@@ -45,7 +45,7 @@ def analyze():
     fig_model.add_trace(go.Scatter(x=index, y=actual_predictions, mode='lines', name='Predicted Prices', line=dict(color='red')))
     
     fig_model.update_layout(
-        title=f'{selected_stock} Price Forecast',
+        title=f'Model Performance on Live Data For {selected_stock} ',
         xaxis=dict(showticklabels=False),  # Hide date labels
         yaxis_title='Price',
         showlegend=True,
